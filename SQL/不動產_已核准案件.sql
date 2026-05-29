@@ -38,7 +38,8 @@ select distinct
 	qt.qtgroup_name,
 
 	case when ln_ever.examine_group_id is not null then 1 else 0 end as loan_activate,
-	total_loan_capital
+	total_loan_capital, 
+	total_loan_remain_capital
 
 from pre_examine pe
 
@@ -75,14 +76,16 @@ left join (
 left join (
 	select distinct
 		pre_examine_no, 
-		sum(loan_capital) as total_loan_capital
+		sum(loan_capital) as total_loan_capital, 
+		sum(loan_remCapital) as total_loan_remain_capital
 
 	from (
 		select distinct
 			pe_lr.pre_examine_id,
 			coalesce(pe_lr.main_no, pe_lr.pre_examine_no) as pre_examine_no, 
 			ln_lr.loan_no,
-			lr.loan_capital
+			lr.loan_capital, 
+			lr.loan_remCapital
 
 		from loan ln_lr
 
@@ -112,18 +115,22 @@ left join (
 
 where pe.pre_bus_type2 = 'H' and
 	main_no is null and
-	--pe.status not in (
-	--'CREDIT_070_1',	-- 待核准
-	--'CREDIT_070_2', -- 處理中
-	--'CREDIT_070_3',	-- 核准，業管確認中
-	--'CREDIT_070_5',	-- 緩議
-	--'CREDIT_070_9'	-- 業退
-	--) 
-	--and 
+	pe.status not in (
+	'CREDIT_070_1',	-- 待核准
+	'CREDIT_070_2', -- 處理中
+	'CREDIT_070_3',	-- 核准，業管確認中
+	'CREDIT_070_5',	-- 緩議
+	'CREDIT_070_9'	-- 業退
+	) 
+	and 
 	(
 		cast(pe.approval_date as date) >= '2025-01-01'
+		or (
+		cast(pe.approval_date as date) < '2025-01-01' and
+		total_loan_remain_capital > 0
+		)
 		or
-		(cast(pe.approval_date as date) < '2025-01-01' and
-		cd_gage.code_id_name = '建築原物料週轉金')
-	) 
-	and pe.pre_examine_no in ('2026020670', '2026020667');
+		(
+		(cast(pe.approval_date as date) < '2025-01-01' or pe.approval_date is null) and
+		cd_gage.code_id_name = '建築原物料週轉金') 
+	);

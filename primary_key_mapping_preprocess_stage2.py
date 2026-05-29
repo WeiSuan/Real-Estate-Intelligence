@@ -3,8 +3,7 @@ import numpy as np
 
 INPUT_STAGE1 = "./Result/截至20260430/table2_primary_key_mapping_preprocess1.xlsx"
 INPUT_MANUAL = "./Result/截至20260430/table2_primary_key_mapping_manual_preprocess.xlsx"
-OUTPUT_FILE = "./Result/截至20260430/table2_primary_key_mapping_preprocess2.xlsx"
-
+OUTPUT_FILE = "./Result/截至20260430/table2_primary_key_mapping.xlsx"
 
 def to_int_then_str(series: pd.Series) -> pd.Series:
     num = pd.to_numeric(series, errors="coerce")
@@ -68,11 +67,21 @@ def main():
         loan_merged2[prev_loan_col] if prev_loan_col in loan_merged2.columns else np.nan,
     )
 
+    primary_mapping_code_stage2 = pre_merged.copy()
+    primary_mapping_code_stage2 = primary_mapping_code_stage2[["pre_examine_no", "pre_examine_no_return", "approved_amount", "pre_examine_no_return_previous", "total_approved_amount_previous"]]
+    tmp_ = primary_mapping_code_stage2.groupby("pre_examine_no_return", as_index=False)["approved_amount"].sum().rename(columns={"approved_amount": "total_approved_amount"})
+    primary_mapping_code_stage2 = primary_mapping_code_stage2.merge(tmp_, on="pre_examine_no_return", how="left")
+    primary_mapping_code_stage2 = primary_mapping_code_stage2[["pre_examine_no", "pre_examine_no_return", "approved_amount", "total_approved_amount", "pre_examine_no_return_previous", "total_approved_amount_previous"]]
+    primary_mapping_code_stage2.sort_values(["pre_examine_no_return", "pre_examine_no"], inplace=True)
+
+    pre_examine_worth_rate_stage2 = pre_merged[["pre_examine_no", "approved_amount", "pre_immovable_worth"]].copy()
+    loan_worth_rate_stage2 = loan_merged2[["loan_no", "loan_capital", "immovable_worth", "immovable_worth_system"]].copy()
+
     # 儲存為 xlsx，兩個 sheet
     with pd.ExcelWriter(OUTPUT_FILE, engine="openpyxl") as writer:
-        pre_merged.to_excel(writer, sheet_name="pre_examine_merged_stage2", index=False)
-        loan_merged2.to_excel(writer, sheet_name="loan_merged_stage2", index=False)
-
+        primary_mapping_code_stage2.to_excel(writer, sheet_name="代碼對應表", index=False)
+        pre_examine_worth_rate_stage2.to_excel(writer, sheet_name="初審單案擔保率", index=False)
+        loan_worth_rate_stage2.to_excel(writer, sheet_name="合約單案擔保率(已撥)", index=False)
 
 if __name__ == "__main__":
     main()

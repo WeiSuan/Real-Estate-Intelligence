@@ -23,7 +23,7 @@ loan_guarantee_rate = "合約單案擔保率(已撥)"
 loan_file = "./Result/截至20260430/table3_loan_remain_cases.xlsx"
 sheet_name_rawdata = "RawData"
 
-output_file = "./Result/截至20260430/table2_primary_key_mapping(TEST)_V2.xlsx"
+output_file = "./Result/截至20260430/table2_primary_key_mapping(TEST)_V3.xlsx"
 
 def to_int_then_str(series: pd.Series) -> pd.Series:
     """Convert values to integer (nullable) then to string; missing -> empty string."""

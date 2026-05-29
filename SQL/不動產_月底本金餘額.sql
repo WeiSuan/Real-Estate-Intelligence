@@ -14,7 +14,7 @@ select distinct
 	cast(sales_date as date) as sales_date, 
 	case when loan_type = 'NORMAL_TYPE' then '正式合約' else '暫付合約' end as loan_type,
 	loan_capital, 
-	loan_remCapital, 
+	loan_remain_capital, 
 	loan_term as 期數, 
 	case when loan_stat = 'CREDIT_048_N' then '正常'
 		 when loan_stat = 'CREDIT_048_E' then 'NIEE'
@@ -65,7 +65,7 @@ left join (select distinct loan_id, max(inst_no) as loan_term from loan_period g
 left join (
 	select loan_id, 
 		SUM(case when k.code='001' then lr.total_amount_receivable else 0 end) as loan_capital,
-		SUM(case when k.code='001' then lr.total_amount_receivable-lr.total_amount_received else 0 end) as loan_remCapital
+		SUM(case when k.code='001' then lr.total_amount_receivable-lr.total_amount_received else 0 end) as loan_remain_capital
 			
 	from loan_receivable lr
 	inner join customer_receive_kind k on lr.customer_receive_kind_id=k.customer_receive_kind_id
