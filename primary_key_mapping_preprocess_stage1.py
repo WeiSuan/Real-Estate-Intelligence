@@ -12,18 +12,18 @@ from datetime import datetime
 from pandas.tseries.offsets import DateOffset
 
 # 1. 讀取資料
-input_file = "./Result/截至20260430/table1_all_approval_cases.xlsx"
+input_file = "./Result/截至20260531/table1_all_approval_cases.xlsx"
 sheet_name_rawdata = "RawData"
 
-previous_file = "./Result/截至20260430/table2_primary_key_mapping_previous.xlsx"
+previous_file = "./Result/截至20260531/table2_primary_key_mapping_previous.xlsx"
 code_mapping_sheet = "代碼對應表"
 pre_examine_guarantee_rate = "初審單案擔保率"
 loan_guarantee_rate = "合約單案擔保率(已撥)"
 
-loan_file = "./Result/截至20260430/table3_loan_remain_cases.xlsx"
+loan_file = "./Result/截至20260531/table3_loan_remain_cases.xlsx"
 sheet_name_rawdata = "RawData"
 
-output_file = "./Result/截至20260430/table2_primary_key_mapping(TEST)_V3.xlsx"
+output_file = "./Result/截至20260531/table2_primary_key_mapping(TEST)_V3.xlsx"
 
 def to_int_then_str(series: pd.Series) -> pd.Series:
     """Convert values to integer (nullable) then to string; missing -> empty string."""

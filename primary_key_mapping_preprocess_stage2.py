@@ -1,9 +1,9 @@
 import pandas as pd
 import numpy as np
 
-INPUT_STAGE1 = "./Result/截至20260430/table2_primary_key_mapping_preprocess1.xlsx"
-INPUT_MANUAL = "./Result/截至20260430/table2_primary_key_mapping_manual_preprocess.xlsx"
-OUTPUT_FILE = "./Result/截至20260430/table2_primary_key_mapping.xlsx"
+INPUT_STAGE1 = "./Result/截至20260531/table2_primary_key_mapping_preprocess1.xlsx"
+INPUT_MANUAL = "./Result/截至20260531/table2_primary_key_mapping_manual_preprocess.xlsx"
+OUTPUT_FILE = "./Result/截至20260531/table2_primary_key_mapping.xlsx"
 
 def to_int_then_str(series: pd.Series) -> pd.Series:
     num = pd.to_numeric(series, errors="coerce")
