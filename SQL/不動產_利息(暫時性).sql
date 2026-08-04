@@ -1,13 +1,7 @@
+use shin_monthly;
+
 select distinct
 	
-	pe.pre_examine_no, 
-	main_no, 
-	coalesce(main_no, pe.pre_examine_no) as pre_examine_no_major, 
-
-	examine_group_no,
-	ct.id_no as customer_id_no,
-	ct.name as customer_name, 
-
 	loan_no, 
 	cast(sales_date as date) as sales_date, 
 	case when loan_type = 'NORMAL_TYPE' then '正式合約' else '暫付合約' end as loan_type,
@@ -68,29 +62,4 @@ left join (
 	from loan_receivable lr
 	inner join customer_receive_kind k on lr.customer_receive_kind_id=k.customer_receive_kind_id
 	group by lr.loan_id) lr
-	on lr.loan_id = ln.loan_id
-
--- 申購人
-left join customer ct
-	on ct.customer_id = ex.applicant_id
-
--- 產業別
-left join industry_parameter ip
-	on ip.industry_parameter_id = ct.industry_parameter_id
-
-left join code_detail cdd
-	on cdd.native_code_id = ip.industry_category and cdd.code_item = 'INDCAT'
-
-left join change_dlr_br ch
-	on ch.examine_group_id = eg.examine_group_id
-
-left join gage ga
-	on ga.gage_id = ex.gage_id
-
-left join car ca
-	on ga.owner_id = ca.car_id and ga.owner_type in ('Machine', 'Medical' ,'Car')
-
-where loan_stat <> 'CREDIT_048_D' and
-	loan_type = 'NORMAL_TYPE' and
-	settle_code = 'LOAN_004_5' and
-	ln.is_activate = 1;
+	on lr.loan_id = ln.loan_id;

@@ -1,5 +1,3 @@
-use shin_monthly;
-
 select distinct
 	pe.pre_examine_no, 
 	--main_no,

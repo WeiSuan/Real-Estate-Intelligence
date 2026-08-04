@@ -1,5 +1,3 @@
-use shin_monthly;
-
 with gage_data as (
 	select distinct
 		

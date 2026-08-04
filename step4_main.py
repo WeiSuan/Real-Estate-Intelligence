@@ -1,11 +1,22 @@
+import re
+
 import pandas as pd
 import numpy as np
 from datetime import timedelta
 
-table1_file_path = './Result/截至20260531/table1_all_approval_cases.xlsx'
-table2_file_path = './Result/截至20260531/table2_primary_key_mapping.xlsx'
-table3_file_path = './Result/截至20260531/table3_loan_remain_cases.xlsx'
-table4_file_path = './Result/截至20260531/table4_loan_remain_immovable_gage.xlsx'
+from data_function import prev_month_end, to_int_then_str, get_mssql_df, generate_city_gage_for_city
+
+end_of_last_month = prev_month_end().strftime('%Y%m%d')
+approval_valid_deadline = end_of_last_month
+#table1_file_path = f'./Result/截至{end_of_last_month}/table1_all_approval_cases.xlsx'
+table2_file_path = f'./Result/截至{end_of_last_month}/primary_key_mapping.xlsx'
+#table3_file_path = f'./Result/截至{end_of_last_month}/table3_loan_remain_cases.xlsx'
+table4_file_path = f'./Result/截至{end_of_last_month}/table4_loan_remain_immovable_gage.xlsx'
+
+summary_table_city_revised = f'./Result/截至{end_of_last_month}/summary_table_city_revised.xlsx'
+summary_table_revised = pd.read_excel(summary_table_city_revised)
+
+output_file = f'./Result/截至{end_of_last_month}/Summary_截至{end_of_last_month}.xlsx'
 
 def to_numeric_or_NA(series):
     s_num = pd.to_numeric(series, errors='coerce')
@@ -57,7 +68,15 @@ def distribute_to_cities(df, value_col, city_flag_cols, city_count_col='city_cou
     return df
 
 # 讀取 table1_all_approval_cases.xlsx：已核准案件資料
-all_approval = pd.read_excel(table1_file_path, sheet_name = "RawData")
+all_approval = approval_df = get_mssql_df(
+    sql_statement_path=r"./SQL/不動產_已核准案件.sql",
+    conn_params={
+        'SERVER': 'Shindbbackup01',
+        'DATABASE': 'shin_monthly',
+        'UID': 'scoreap',
+        'PWD': 'Nii2Sc@re'
+    })
+# all_approval = pd.read_excel(table1_file_path, sheet_name = "RawData")
 
 for col in ['pre_examine_no', 'customer_id_no', 'qtgroup_id']:
     all_approval[col] = pd.to_numeric(all_approval[col], errors='coerce').astype('Int64').astype(str)
@@ -67,7 +86,7 @@ all_approval['approved_amount'] = to_numeric_or_NA(all_approval['approved_amount
 
 
 # 讀取 table2_primary_key_mapping.xlsx 的 sheetName = "代碼對應表"
-key_mapping = pd.read_excel(table2_file_path, sheet_name='代碼對應表')
+key_mapping = pd.read_excel(table2_file_path, sheet_name='代碼對應表').drop_duplicates(subset=['pre_examine_no'], keep='first')
 for col in ['pre_examine_no', 'pre_examine_no_return', 'pre_examine_no_return_previous']:
     key_mapping[col] = pd.to_numeric(key_mapping[col], errors='coerce').astype('Int64').astype(str)
 
@@ -77,7 +96,16 @@ for col in ['approved_amount', 'total_approved_amount', 'total_approved_amount_p
 merged = pd.merge(all_approval, key_mapping, on='pre_examine_no', how='left', suffixes=('', '_key'))
 
 # 讀取 table3_loan_remain_cases.xlsx 的 sheetName = "RawData"
-loan_remain = pd.read_excel(table3_file_path, sheet_name='RawData')
+# loan_remain = pd.read_excel(table3_file_path, sheet_name='RawData')
+loan_remain = get_mssql_df(
+    sql_statement_path=r"./SQL/不動產_月底本金餘額.sql",
+    conn_params={
+        'SERVER': 'Shindbbackup01',
+        'DATABASE': 'shin_monthly',
+        'UID': 'scoreap',
+        'PWD': 'Nii2Sc@re'
+    })
+
 for col in ['pre_examine_no', 'pre_examine_no_major', 'customer_id_no', 'loan_no']:
     loan_remain[col] = pd.to_numeric(loan_remain[col], errors='coerce').astype('Int64').astype(str)
 
@@ -90,6 +118,7 @@ loan_remain['loan_remain_capital'] = pd.to_numeric(loan_remain['loan_remain_capi
 loan_remain_merged = loan_remain.drop(columns=[col for col in ['pre_examine_no', 'main_no'] if col in loan_remain.columns], errors='ignore').rename(columns={'pre_examine_no_major': 'pre_examine_no'})
 key_mapping_merged = key_mapping[['pre_examine_no', 'pre_examine_no_return']].copy()
 loan_remain_merged = pd.merge(loan_remain_merged, key_mapping_merged, on='pre_examine_no', how='left')
+
 # 將 pre_examine_no_return NA 或空白補為 'NULL'
 loan_remain_merged['pre_examine_no_return'] = loan_remain_merged['pre_examine_no_return'].fillna('NULL')
 loan_remain_merged['pre_examine_no_return'] = loan_remain_merged['pre_examine_no_return'].replace('', 'NULL')
@@ -133,9 +162,14 @@ loan_remain_merged = pd.concat([loan_remain_notnull_construction,
                                 loan_remain_notnull_notconstruction,
                                 loan_remain_null], ignore_index=True).sort_values(['pre_examine_no', 'loan_no']).reset_index(drop=True)
 
+
 # 讀取 table4_loan_remain_immovable_gage.xlsx 的 sheetName = "RawData"
 loan_immovable_gage = pd.read_excel(table4_file_path, sheet_name='merged_city_expanded')
-loan_immovable_gage["loan_no"] = pd.to_numeric(loan_immovable_gage["loan_no"], errors='coerce').astype('Int64').astype(str)
+loan_immovable_gage["loan_no"] = to_int_then_str(loan_immovable_gage["loan_no"])
+
+
+loan_immovable_gage_detail = pd.read_excel(table4_file_path, sheet_name='merged')
+loan_immovable_gage_detail["loan_no"] = to_int_then_str(loan_immovable_gage_detail["loan_no"])
 
 
 # 合約資訊彙整
@@ -147,6 +181,7 @@ for col in loan_immovable_city:
 
 loan_remain_merged['city_count'] = loan_remain_merged[loan_immovable_city].sum(axis=1)
 loan_remain_merged['city_none'] = (loan_remain_merged['city_count'] == 0).astype(int)
+
 
 # === 「擔保值」城市表 ===
 gage_cols = ['loan_no', 'immovable_worth'] + loan_immovable_city + ['city_count', 'city_none']
@@ -238,6 +273,7 @@ def has_both_code_type(series):
 pre_code_type_both_group = merged.groupby('pre_examine_no_return')['pre_code_type'].apply(has_both_code_type).reset_index().rename(columns={'pre_code_type': 'pre_code_type_both_group'})
 merged = pd.merge(merged, pre_code_type_both_group, on='pre_examine_no_return', how='left')
 
+merged.to_excel(output_file, index=False)
 
 # 新增 approval_valid_date
 def calc_valid_date(row):
@@ -255,7 +291,7 @@ merged['approval_valid_date'] = merged.apply(calc_valid_date, axis=1)
 
 # 新增 quota_valid 欄位
 # 指定日期
-cutoff_date = pd.to_datetime('2026-05-31')
+cutoff_date = pd.to_datetime(approval_valid_deadline)
 merged['quota_valid'] = np.where(
     merged['approval_valid_date'] < cutoff_date,
     0,
@@ -333,7 +369,6 @@ table3 = table3.rename(columns={
 })
 
 
-
 # === 表三延伸表(城市 / 融資類型 / 剩餘本金 / 擔保品價值) ===
 city_list = loan_immovable_city + ["city_none"]
 city_gage_rows = []
@@ -348,10 +383,17 @@ for city in city_list:
 city_gage_df = pd.DataFrame(city_gage_rows)
 
 # 2. 從 table3 取出每個 city 的 {city}_remain 及 {city}_worth，分別命名為 loan_capital_remain 與 immovable_gage_worth
-table3_v2 = pd.merge(table3, table1_final[["pre_examine_no_return", "customer_name"]].drop_duplicates(), on=['pre_examine_no_return'], how='left')
+table3_v2 = pd.merge(
+    table3, 
+    table1_final[["pre_examine_no_return", "customer_name"]].drop_duplicates(), 
+    on=['pre_examine_no_return'], 
+    how='left')
+
 # 當 pre_examine_no_return 為 NULL 或 NA 時，customer_name 補 "資料不明"
 table3_v2['customer_name'] = table3_v2.apply(
-    lambda x: '資料不明' if (pd.isna(x['pre_examine_no_return']) or x['pre_examine_no_return'] == 'NULL' or pd.isna(x['customer_name'])) else x['customer_name'], axis=1)
+    lambda x: '資料不明' if (pd.isna(x['pre_examine_no_return']) or x['pre_examine_no_return'] == 'NULL' or pd.isna(x['customer_name'])) else x['customer_name'], 
+    axis=1
+    )
 
 city_stat_rows = []
 for city in city_list:
@@ -373,6 +415,7 @@ city_stat_df = city_stat_df.groupby(['city', 'loan_code_type', 'customer_name'],
     'loan_capital_remain': 'sum',
     'immovable_gage_worth': 'sum'
 }).sort_values(['city', 'loan_code_type', 'customer_name']).reset_index(drop=True)
+
 # 刪除 loan_capital_remain 與 immovable_gage_worth 同時為 0 的資料
 city_stat_df = city_stat_df[~((city_stat_df['loan_capital_remain'] == 0) & (city_stat_df['immovable_gage_worth'] == 0))].reset_index(drop=True)
 
@@ -383,22 +426,45 @@ addition_summary_table = pd.DataFrame({
     "pre_examine_no_return": ['NULL', 'NULL', 'NULL', 'NULL', 'NULL'],
     "pre_code_type": ['(1)土融', '(2)建融', '(3)土建融', '(4)餘屋', '(5)其他'],
 })
+
 summary_table = pd.concat([summary_table, addition_summary_table], axis = 0).reset_index(drop=True)
 summary_table = pd.merge(
     summary_table,
     table3,
     left_on=['pre_examine_no_return', 'pre_code_type'],
     right_on=['pre_examine_no_return', 'loan_code_type'],
-    how='left'
+    how='outer'
 )
 
-# build summary column list programmatically to avoid duplication
+# 初審系統及合約系統中，當同一「pre_examine_no」對應的「業務別第一碼」相異時需額外處理
+summary_table['pre_code_type'] = summary_table['pre_code_type'].replace('', np.nan)
+summary_table['pre_code_type'] = summary_table['pre_code_type'].fillna(summary_table.get('loan_code_type'))
+
+def first_nonempty(series):
+    for v in series:
+        if pd.notna(v) and str(v).strip() != '':
+            return v
+    return np.nan
+
+group_names = merged.groupby('pre_examine_no_return').agg({
+    'qtgroup_name': first_nonempty,
+    'customer_name': first_nonempty
+}).reset_index()
+
+summary_table = pd.merge(summary_table, group_names, on='pre_examine_no_return', how='left', suffixes=('', '_grp'))
+for col in ['qtgroup_name', 'customer_name']:
+    summary_table[col] = summary_table[col].where(summary_table[col].notna() & (summary_table[col] != ''), summary_table[f'{col}_grp'])
+    if f'{col}_grp' in summary_table.columns:
+        summary_table.drop(columns=[f'{col}_grp'], inplace=True)
+
+summary_table = summary_table[summary_table['pre_examine_no_return'].notna() & (summary_table['pre_examine_no_return'] != '')].reset_index(drop=True)
+
 base_cols = [
     "qtgroup_name",
     "customer_name",
-    "total_approved_amount",
+    # "total_approved_amount",
     "total_approved_amount_system",
-    "total_approved_amount_diff",
+    # "total_approved_amount_diff",
     "pre_examine_no_return",
     "pre_code_type",
     "approved_amount_return",
@@ -419,11 +485,99 @@ remain_cols = [f"{city}_remain" for city in loan_immovable_city] + ["city_none_r
 summary_cols = base_cols + worth_cols + capital_cols + remain_cols
 summary_table = summary_table[summary_cols]
 
-# 輸出四個表
-with pd.ExcelWriter(r'./Result/截至20260531/Summary_截至20260531.xlsx') as writer:
-    merged.to_excel(writer, sheet_name='RawData', index=False)
-    # table1_final.to_excel(writer, sheet_name='表一', index=False)
-    # table2.to_excel(writer, sheet_name='表二', index=False)
-    table3.to_excel(writer, sheet_name='合約本餘_擔保品', index=False)
-    city_stat_df.to_excel(writer, sheet_name='城市統計表_擔保品', index=False)
+# 處理尚有本餘者但對應不到擔保品資訊的案件：city_none_remain > 0
+summary_table_revised['pre_examine_no_return'] = to_int_then_str(summary_table_revised['pre_examine_no_return'])
+
+rev_group = summary_table_revised.groupby(['pre_examine_no_return', 'pre_code_type'])['city_revised'].apply(
+    lambda s: [c.strip() for val in s.dropna() for c in re.split('[,;/、\n\r\t]+', str(val)) if c.strip()]
+).reset_index().rename(columns={'city_revised': 'city_revised_list'})
+
+for _, prow in rev_group.iterrows():
+    key_pre = prow['pre_examine_no_return']
+    key_code = prow['pre_code_type']
+    cities_all = prow['city_revised_list']
+    if not cities_all:
+        continue
+
+    # deduplicate while preserving order
+    seen = set()
+    cities = [x for x in cities_all if not (x in seen or seen.add(x))]
+
+    # filter valid cities that exist as columns in summary_table
+    valid_cities = [c for c in cities if f"{c}_remain" in summary_table.columns or f"{c}_worth" in summary_table.columns or f"{c}_capital" in summary_table.columns]
+    if not valid_cities:
+        continue
+
+    n = len(valid_cities)
+    mask = (summary_table['pre_examine_no_return'] == key_pre) & (summary_table['pre_code_type'] == key_code)
+    if not mask.any():
+        continue
+
+    # For each metric_none, take the total from summary_table for that key, divide by n, distribute once
+    for metric_none, suffix in [('city_none_worth', '_worth'), ('city_none_capital', '_capital'), ('city_none_remain', '_remain')]:
+        if metric_none not in summary_table.columns:
+            continue
+        total_val = summary_table.loc[mask, metric_none].sum()
+        try:
+            total_num = float(total_val)
+        except Exception:
+            total_num = 0
+        if total_num == 0:
+            # ensure set to 0 as well
+            summary_table.loc[mask, metric_none] = 0
+            continue
+
+        share = total_num / n
+        matching_idx = summary_table.index[mask].tolist()
+        if not matching_idx:
+            continue
+        target_idx = matching_idx[0]
+        for city in valid_cities:
+            colname = f"{city}{suffix}"
+            if colname in summary_table.columns:
+                prev = summary_table.at[target_idx, colname]
+                if pd.isna(prev):
+                    prev = 0
+                summary_table.at[target_idx, colname] = prev + share
+        summary_table.loc[mask, metric_none] = 0
+
+rename_map = {
+    'qtgroup_name': '額度關係人',
+    'customer_name': '申購人',
+    'total_approved_amount_system': '總額度',
+    'pre_examine_no_return': '初審編號(歸案)',
+    'pre_code_type': '業別第一碼(擔保品)分類',
+    'approved_amount_return': '額度',
+    'approved_amount_remain_valid_return': '有效額度',
+    'approved_amount_remain_invalid_return': '無效額度',
+    'total_loan_capital_original': '已撥金額',
+    'loan_no_count': '立約件數',
+    'total_loan_capital': '已撥金額(尚有本餘案件原始撥款金額)',
+    'total_loan_remain': '剩餘本金',
+    'total_loan_extend': '合約展延與否',
+    'immovable_worth': '擔保值'
+}
+summary_table = summary_table.rename(columns=rename_map)
+
+with pd.ExcelWriter(output_file) as writer:
     summary_table.to_excel(writer, sheet_name='總表', index=False)
+    city_stat_df.to_excel(writer, sheet_name='擔保品_城市統計表', index=False)
+    table3.to_excel(writer, sheet_name='擔保品_合約本餘', index=False)
+    merged.to_excel(writer, sheet_name='已核准案件', index=False)
+
+
+# 處理所有縣市：使用 data_function.generate_city_gage_for_city，將每個縣市的結果寫入同一個 Excel（每個縣市一個 sheet），
+# 並在最後加入一個合併表 'All_Cities_Combined'
+out_path_all = f'./Result/截至{end_of_last_month}/各縣市_擔保品_合併_截至{end_of_last_month}.xlsx'
+all_results = []
+for city in loan_immovable_city:
+    df_city = generate_city_gage_for_city(summary_table, key_mapping, loan_remain, loan_immovable_gage_detail, city)
+    if not df_city.empty:
+        all_results.append(df_city)
+
+if all_results:
+    combined = pd.concat(all_results, ignore_index=True)
+else:
+    combined = pd.DataFrame(columns=['額度關係人','申購人','初審編號(歸案)','業別第一碼(擔保品)分類','city_name','district_result','value_worth','value_capital','value_remain'])
+
+combined.to_excel(out_path_all, sheet_name='All_Cities', index=False)

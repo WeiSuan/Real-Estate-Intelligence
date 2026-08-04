@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>擔保曝險地圖儀表板</title>
+    <link rel="stylesheet" href="styles.css?v=20260709_toolbar_filters9">
+</head>
+<body>
+    <div id="drawerBackdrop" class="drawer-backdrop" hidden></div>
+    <main class="dashboard-shell">
+        <div class="snapshot-sticky-header" aria-label="整體概況與目前條件">
+        <section class="secondary-kpis kpi-bar" data-dev-hide-key="kpiPanel" data-dev-hide-label="區域指標面板" aria-label="區域指標面板">
+            <div class="section-title-row">
+                <div>
+                    <h2 id="kpiPanelTitle">整體概況(統計件數0件)</h2>
+                </div>
+                <div class="header-badges">
+                    <div class="system-controls" aria-label="系統控制">
+                        <label class="developer-switch system-developer-switch" title="切換開發者模式" hidden aria-hidden="true">
+                            <span>開發者模式</span>
+                            <input id="developerModeToggle" type="checkbox" aria-label="開發者模式">
+                        </label>
+                        <button id="toggleToolbarBtn" class="system-control-btn" type="button" title="展開快捷工具列" aria-label="展開快捷工具列" hidden aria-hidden="true">
+                            <span class="system-control-glyph" aria-hidden="true">☰</span>
+                        </button>
+                        <button id="themeToggleBtn" class="system-control-btn" type="button" title="切換色彩模式" aria-label="切換色彩模式">
+                            <span class="system-control-glyph" aria-hidden="true">◐</span>
+                        </button>
+                    </div>
+                    <span id="currentRegionBadge" class="soft-badge" hidden aria-hidden="true">目前區域：全台</span>
+                    <button id="capturePagePngBtn" class="page-screenshot-btn" type="button" data-screenshot-exclude="1" title="下載完整頁面 PNG 截圖" aria-label="下載完整頁面 PNG 截圖">
+                        <span class="page-screenshot-glyph" aria-hidden="true">▣</span>
+                        <span>PNG</span>
+                    </button>
+                </div>
+            </div>
+            <div class="mini-kpi-grid">
+                <article><span>本金餘額</span><strong id="kpiPrincipal">0</strong></article>
+                <article class="kpi-approved-card"><span>已准未用</span><strong id="kpiApprovedUnused" class="kpi-split-value">0</strong></article>
+                <article><span>總歸戶金額</span><strong id="kpiHousehold">0</strong></article>
+                <article><span>總擔保價值</span><strong id="kpiCollateral">0</strong></article>
+                <article class="kpi-dual-card">
+                    <span>平均 LTV</span>
+                    <strong id="kpiAvgLtv" class="kpi-dual-value">0.00%</strong>
+                </article>
+                <article class="kpi-dual-card">
+                    <span>平均擔保覆蓋率</span>
+                    <strong id="kpiAvgCoverage" class="kpi-dual-value">0.00%</strong>
+                </article>
+            </div>
+        </section>
+
+        <section id="activeFiltersBar" class="active-filters-bar" aria-label="目前篩選條件">
+            <div class="active-filters-left">
+                <span class="active-filters-title">目前條件：</span>
+                <div id="activeFilterChips" class="active-filter-chips"></div>
+            </div>
+            <div class="filter-tool-group" aria-label="面板快捷工具">
+                <button id="toggleCountyDrawer" class="ghost-button compact-button snapshot-only-tool" data-dev-hide-key="countyDrawerPanel" data-dev-hide-label="縣市彙總表" type="button" title="縣市彙總表" aria-label="縣市彙總表">縣市明細</button>
+                <button id="openCaseDrawer" class="ghost-button compact-button snapshot-only-tool" data-dev-hide-key="caseDrawerPanel" data-dev-hide-label="案件明細表" type="button" title="案件明細表" aria-label="案件明細表">案件明細</button>
+                <div id="viewModeToggleBtn" class="segmented-control control-segment view-mode-toggle" role="group" title="切換當期/趨勢分析" aria-label="切換當期/趨勢分析">
+                    <button type="button" class="segmented-btn active" data-view-mode="snapshot" aria-pressed="true">當期</button>
+                    <button type="button" class="segmented-btn" data-view-mode="timeline" aria-pressed="false">趨勢</button>
+                </div>
+            </div>
+            <div class="active-filters-actions">
+                <div class="timeline-expand-zone">
+                    <label class="period-field current-period-field">
+                        <span>當期月份</span>
+                        <select id="selectedPeriodSelect" class="period-select" title="當期月份"></select>
+                    </label>
+                    <select id="comparePeriodSelect" class="period-select timeline-only-control" title="比較期間"></select>
+                    <div class="segmented-control control-segment exposure-basis-control timeline-only-control timeline-exposure-basis-control" role="group" aria-label="趨勢區域授信排行口徑">
+                        <button id="timelineExposurePrincipalBtn" type="button" class="segmented-btn" data-exposure-basis="principal" aria-pressed="true">本金</button>
+                        <button id="timelineExposureHouseholdBtn" type="button" class="segmented-btn" data-exposure-basis="household" aria-pressed="false">總歸戶</button>
+                    </div>
+                </div>
+                <div class="report-control-group" aria-label="報表口徑與單位">
+                    <div class="segmented-control control-segment exposure-basis-control snapshot-exposure-basis-control" role="group" aria-label="曝險口徑">
+                        <button id="exposurePrincipalBtn" type="button" class="segmented-btn" data-exposure-basis="principal" aria-pressed="true">本金</button>
+                        <button id="exposureHouseholdBtn" type="button" class="segmented-btn" data-exposure-basis="household" aria-pressed="false">總歸戶</button>
+                    </div>
+                    <div id="amountUnitToggleBtn" class="segmented-control control-segment amount-unit-toggle" role="group" title="切換金額單位" aria-label="金額單位">
+                        <button type="button" class="segmented-btn amount-unit-option" data-amount-unit="yi" aria-pressed="false">億元</button>
+                        <button type="button" class="segmented-btn amount-unit-option active" data-amount-unit="k" aria-pressed="true">仟元</button>
+                    </div>
+                </div>
+                <label class="privacy-switch" title="切換客戶與初審單號顯示方式">
+                    <span>客戶/單號</span>
+                    <input id="customerMaskToggle" type="checkbox" aria-label="客戶與初審單號加密">
+                    <span class="privacy-switch-track" aria-hidden="true">
+                        <span class="privacy-switch-thumb"></span>
+                    </span>
+                    <strong class="privacy-switch-text">顯示</strong>
+                </label>
+                <select id="barPaletteSelect" class="bar-palette-select" title="Bar 配色" hidden aria-hidden="true">
+                    <option value="ocean">海洋藍</option>
+                    <option value="violet">紫藍漸層</option>
+                    <option value="sunset">日落橘</option>
+                    <option value="forest">森林綠</option>
+                </select>
+                <button id="refreshFiltersBtn" class="ghost-button compact-button" type="button">重新查詢</button>
+                <button id="clearFilters" class="ghost-button compact-button" type="button">清除篩選</button>
+            </div>
+        </section>
+        </div>
+
+        <section id="filterPanel" class="filter-panel inline-filter-panel snapshot-only-panel" data-dev-hide-key="filterPanel" data-dev-hide-label="篩選條件" aria-label="全域篩選器">
+            <div class="filter-grid">
+                <label class="filter-field">
+                    <span>區域</span>
+                    <details class="matrix-dropdown filter-dropdown">
+                        <summary id="countyFilterSummary">全台</summary>
+                        <div id="countyFilter" class="matrix-checkbox-list"></div>
+                    </details>
+                </label>
+                <label class="filter-field">
+                    <span>產品/業別</span>
+                    <details class="matrix-dropdown filter-dropdown">
+                        <summary id="industryFilterSummary">全部</summary>
+                        <div id="industryFilter" class="matrix-checkbox-list"></div>
+                    </details>
+                </label>
+                <label class="filter-field">
+                    <span>起租狀況</span>
+                    <select id="anomalyFilter">
+                        <option value="">全部</option>
+                        <option value="exclude">僅顯示已起租</option>
+                        <option value="only">僅顯示未起租</option>
+                    </select>
+                </label>
+                <label class="filter-field">
+                    <span>LTV 區間</span>
+                    <details class="matrix-dropdown filter-dropdown">
+                        <summary id="ltvFilterSummary">全部</summary>
+                        <div id="ltvFilter" class="matrix-checkbox-list"></div>
+                    </details>
+                </label>
+                <div class="filter-field">
+                    <span>擔保覆蓋率</span>
+                    <details class="matrix-dropdown">
+                        <summary>請選擇（可複選）</summary>
+                        <div id="matrixCollateralFilters" class="matrix-checkbox-list"></div>
+                    </details>
+                </div>
+                <div class="filter-field">
+                    <span>象限</span>
+                    <details class="matrix-dropdown">
+                        <summary>請選擇（可複選）</summary>
+                        <div id="matrixQuadrantFilters" class="matrix-checkbox-list"></div>
+                    </details>
+                </div>
+            </div>
+        </section>
+
+        <section id="countyDrawerPanel" class="panel action-panel case-drawer" data-dev-hide-key="countyDrawerPanel" data-dev-hide-label="縣市彙總表" hidden aria-hidden="true">
+                <div id="countySummaryHeader" class="section-title-row">
+                    <div>
+                        <p class="eyebrow">County Summary</p>
+                        <h2>縣市彙總表</h2>
+                    </div>
+                    <div class="table-actions">
+                        <button id="closeCountyDrawer" class="ghost-button compact-button" type="button">關閉</button>
+                        <button id="lockCountyColumns" class="ghost-button compact-button" type="button">欄寬鎖定：關</button>
+                        <button id="exportCountySummaryExcel" class="ghost-button compact-button" type="button">匯出 Excel</button>
+                        <button id="toggleCountySummary" class="ghost-button compact-button toggle-button" type="button">摺疊</button>
+                    </div>
+                </div>
+                <section class="active-filters-bar drawer-filters" aria-label="縣市彙總條件">
+                    <div class="active-filters-left">
+                        <span class="active-filters-title">目前條件：</span>
+                        <div id="countyFilterChips" class="active-filter-chips"></div>
+                    </div>
+                </section>
+                <div id="countySummaryWrap" class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>縣市</th>
+                                <th>客戶計數</th>
+                                <th>最大客戶</th>
+                                <th>最大客戶本金佔比</th>
+                                <th>核准額度</th>
+                                <th>已撥金額</th>
+                                <th>已准未用</th>
+                                <th>本金餘額</th>
+                                <th>本金餘額結構比</th>
+                                <th>擔保值</th>
+                                <th>LTV</th>
+                                <th>擔保率</th>
+                            </tr>
+                        </thead>
+                        <tbody id="countySummaryRows"></tbody>
+                    </table>
+                </div>
+        </section>
+
+        <section id="caseDrawerPanel" class="panel action-panel case-drawer" data-dev-hide-key="caseDrawerPanel" data-dev-hide-label="案件明細表" aria-hidden="true" hidden>
+                <div id="caseTableHeader" class="section-title-row">
+                    <div>
+                        <p class="eyebrow">Action List</p>
+                        <h2>案件明細表</h2>
+                    </div>
+                    <div class="table-actions">
+                        <button id="closeCaseDrawer" class="ghost-button compact-button" type="button">關閉</button>
+                        <button id="lockCaseColumns" class="ghost-button compact-button" type="button">欄寬鎖定：關</button>
+                        <label class="table-search">
+                            <span>搜尋</span>
+                            <input id="tableSearch" type="search" placeholder="客戶 / 初審單號">
+                        </label>
+                        <button id="clearTableSearch" class="ghost-button compact-button" type="button">清除搜尋</button>
+                        <button id="exportCaseDetailExcel" class="ghost-button compact-button" type="button">匯出 Excel</button>
+                        <button id="toggleCaseTable" class="ghost-button compact-button toggle-button" type="button">摺疊</button>
+                    </div>
+                </div>
+                <section class="active-filters-bar drawer-filters" aria-label="案件明細條件">
+                    <div class="active-filters-left">
+                        <span class="active-filters-title">目前條件：</span>
+                        <div id="caseFilterChips" class="active-filter-chips"></div>
+                    </div>
+                </section>
+                <p id="tableSummary" class="table-summary">尚未載入資料</p>
+                <div id="caseTableWrap" class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>客戶</th>
+                                <th>縣市</th>
+                                <th>業別</th>
+                                <th>初審單號</th>
+                                <th>本金餘額</th>
+                                <th>已准未用</th>
+                                <th>總歸戶金額</th>
+                                <th>擔保值</th>
+                                <th>LTV</th>
+                                <th>覆蓋率</th>
+                                <th>象限標籤</th>
+                                <th>備註</th>
+                            </tr>
+                        </thead>
+                        <tbody id="riskRows"></tbody>
+                    </table>
+                </div>
+        </section>
+        <section id="dependencyNotice" class="notice" hidden></section>
+        <div hidden aria-hidden="true">
+            <span id="dataStatus">載入中</span>
+            <span id="filterSummary">全台全資料</span>
+        </div>
+        <section id="developerPanel" class="panel developer-panel" hidden aria-label="開發者隱藏設定">
+            <div class="section-title-row compact">
+                <h2>開發者模式</h2>
+                <span class="soft-badge">勾選後一般使用者隱藏</span>
+            </div>
+            <label class="developer-option">
+                <input id="timelineFilterLinkToggle" type="checkbox">
+                <span>斷開當期面板與趨勢面板的篩選連結</span>
+            </label>
+            <section class="developer-font-section" aria-label="文字大小設定">
+                <div class="section-title-row compact">
+                    <div>
+                        <p class="eyebrow">Font Size</p>
+                        <h2>文字大小設定</h2>
+                    </div>
+                    <button id="resetFontSizeConfigBtn" class="ghost-button compact-button" type="button">回到預設值</button>
+                </div>
+                <div class="developer-font-grid">
+                    <label class="developer-number-option">
+                        <span>字體</span>
+                        <select id="fontFamilySelect" aria-label="全站主要字體">
+                            <option value="system">系統預設</option>
+                            <option value="microsoft-jhenghei">微軟正黑體</option>
+                            <option value="kai">標楷體</option>
+                            <option value="noto-sans-hk">Noto Sans HK</option>
+                        </select>
+                    </label>
+                    <label class="developer-number-option">
+                        <span>標題文字大小</span>
+                        <input id="titleFontSizeInput" type="number" min="10" max="28" step="1" inputmode="numeric" value="16" aria-label="標題文字大小">
+                    </label>
+                    <label class="developer-number-option">
+                        <span>內文／數值文字大小</span>
+                        <input id="bodyFontSizeInput" type="number" min="10" max="28" step="1" inputmode="numeric" value="13" aria-label="內文與數值文字大小">
+                    </label>
+                    <label class="developer-number-option">
+                        <span>圖表文字大小</span>
+                        <input id="chartFontSizeInput" type="number" min="9" max="20" step="1" inputmode="numeric" value="11" aria-label="圖表文字大小">
+                    </label>
+                    <label class="developer-number-option">
+                        <span>地圖文字大小</span>
+                        <input id="mapFontSizeInput" type="number" min="9" max="20" step="1" inputmode="numeric" value="12" aria-label="地圖文字大小">
+                    </label>
+                </div>
+            </section>
+            <div id="developerHiddenList" class="developer-hidden-list"></div>
+            <section class="developer-display-section" aria-label="元件顯示名稱自訂">
+                <div class="section-title-row compact">
+                    <div>
+                        <p class="eyebrow">Display Names</p>
+                        <h2>元件顯示名稱自訂</h2>
+                    </div>
+                    <button id="resetComponentDisplayNamesBtn" class="ghost-button compact-button" type="button">全部重設</button>
+                </div>
+                <div id="developerDisplayNameList" class="developer-display-list"></div>
+            </section>
+        </section>
+
+        <section class="main-grid">
+            <article class="panel map-panel grid-map" data-dev-hide-key="mapPanel" data-dev-hide-label="台澎金馬曝險地圖">
+                <div class="section-title-row">
+                    <div>
+                        <p class="eyebrow">Risk Heatmap</p>
+                        <h2>台澎金馬曝險地圖</h2>
+                    </div>
+                    <div class="map-tools">
+                        <label class="top5-toggle">
+                            <input id="top5Toggle" type="checkbox" checked>
+                            <span>Top 5 標籤</span>
+                        </label>
+                        <button id="mapLockToggle" class="ghost-button compact-button" type="button" title="地圖位置鎖定" aria-label="地圖位置鎖定">地圖鎖定：關</button>
+                    </div>
+                </div>
+                <div class="map-district-layout">
+                    <div id="mapChart" class="chart map-chart" role="img" aria-label="台灣縣市曝險熱度地圖"></div>
+                    <aside id="districtPanel" class="district-panel empty" aria-label="行政區風險分布" hidden aria-hidden="true">
+                        <div class="district-panel-header">
+                            <div>
+                                <p class="eyebrow">行政區風險分布</p>
+                                <h3>行政區篩選</h3>
+                            </div>
+                        </div>
+                        <div class="district-current-card">
+                            <span>行政區風險分布</span>
+                            <strong id="districtTitle">請選取縣市</strong>
+                            <em id="districtSummary" class="district-summary">尚未選取行政區</em>
+                        </div>
+                        <div class="district-actions" aria-label="行政區操作">
+                            <button id="districtSelectAllBtn" class="ghost-button compact-button" type="button" disabled>全選</button>
+                            <button id="districtClearBtn" class="ghost-button compact-button" type="button" disabled>清除</button>
+                            <button id="districtBackBtn" class="ghost-button compact-button" type="button">關閉</button>
+                        </div>
+                        <label class="district-search-field">
+                            <span>搜尋行政區</span>
+                            <input id="districtSearch" type="search" placeholder="搜尋行政區" disabled>
+                        </label>
+                        <div id="districtList" class="district-list">
+                            <p class="district-empty">請先從地圖或區域篩選選取縣市。</p>
+                        </div>
+                    </aside>
+                </div>
+                <button id="kinmenInsetBtn" class="kinmen-map-chip" type="button" aria-label="篩選金門縣" title="金門縣">金門縣</button>
+            </article>
+            <article class="panel main-slot main-default-only" data-main-slot="0" data-dev-hide-key="mainSlot1" data-dev-hide-label="主圖表左上">
+                <div class="section-title-row compact">
+                    <h2 id="mainSlotTitle1">-</h2>
+                    <button id="countyRankBackBtn" class="ghost-button compact-button rank-back-button" type="button" hidden>返回縣市排行</button>
+                    <span id="mainSlotBadge1" class="soft-badge interactive-badge" hidden></span>
+                    <div id="mainSlotCoverageToggle1" class="segmented-control slot-coverage-toggle" role="group" aria-label="分佈基準" hidden>
+                        <button type="button" class="segmented-btn active" data-value="case">案件</button>
+                        <button type="button" class="segmented-btn" data-value="county">縣市</button>
+                    </div>
+                </div>
+                <div id="mainSlotChart1" class="chart mini-rank-chart"></div>
+            </article>
+            <article class="panel main-slot main-default-only" data-main-slot="1" data-dev-hide-key="mainSlot2" data-dev-hide-label="主圖表右上">
+                <div class="section-title-row compact">
+                    <h2 id="mainSlotTitle2">-</h2>
+                    <span id="mainSlotBadge2" class="soft-badge interactive-badge" hidden></span>
+                    <div id="mainSlotCoverageToggle2" class="segmented-control slot-coverage-toggle" role="group" aria-label="分佈基準" hidden>
+                        <button type="button" class="segmented-btn active" data-value="case">案件</button>
+                        <button type="button" class="segmented-btn" data-value="county">縣市</button>
+                    </div>
+                </div>
+                <div id="mainSlotChart2" class="chart mini-rank-chart"></div>
+            </article>
+            <article class="panel main-slot main-default-only" data-main-slot="2" data-dev-hide-key="mainSlot3" data-dev-hide-label="主圖表左下">
+                <div class="section-title-row compact">
+                    <h2 id="mainSlotTitle3">-</h2>
+                    <span id="mainSlotMarketMeta3" class="market-meta-badge" hidden></span>
+                    <span id="mainSlotBadge3" class="soft-badge interactive-badge" hidden></span>
+                    <div id="mainSlotCoverageToggle3" class="segmented-control slot-coverage-toggle" role="group" aria-label="分佈基準" hidden>
+                        <button type="button" class="segmented-btn active" data-value="case">案件</button>
+                        <button type="button" class="segmented-btn" data-value="county">縣市</button>
+                    </div>
+                </div>
+                <div id="mainSlotChart3" class="chart rank-chart"></div>
+            </article>
+            <article class="panel main-slot main-default-only" data-main-slot="3" data-dev-hide-key="mainSlot4" data-dev-hide-label="主圖表右下">
+                <div class="section-title-row compact">
+                    <h2 id="mainSlotTitle4">-</h2>
+                    <span id="mainSlotBadge4" class="soft-badge interactive-badge" hidden></span>
+                    <div id="mainSlotCoverageToggle4" class="segmented-control slot-coverage-toggle" role="group" aria-label="分佈基準" hidden>
+                        <button type="button" class="segmented-btn active" data-value="case">案件</button>
+                        <button type="button" class="segmented-btn" data-value="county">縣市</button>
+                    </div>
+                    <div id="mainSlotLtvBasisToggle4" class="segmented-control compact-segment ltv-basis-toggle" role="group" aria-label="LTV 區間分布口徑" hidden>
+                        <button type="button" class="segmented-btn active" data-ltv-basis="count" aria-pressed="true">件數</button>
+                        <button type="button" class="segmented-btn" data-ltv-basis="amount" aria-pressed="false">金額</button>
+                    </div>
+                </div>
+                <div id="mainSlotChart4" class="chart rank-chart"></div>
+            </article>
+            <article id="newsPanel" class="panel grid-news news-panel" data-dev-hide-key="newsPanel" data-dev-hide-label="相關新聞區" hidden>
+                <div class="section-title-row compact">
+                    <h2>相關新聞區</h2>
+                    <div class="table-actions">
+                        <span id="newsRegionBadge" class="soft-badge">目前區域：全台</span>
+                        <button id="toggleNewsFormBtn" class="ghost-button compact-button" type="button">新增新聞</button>
+                    </div>
+                </div>
+                <form id="newsForm" class="news-form" hidden>
+                    <label>
+                        <span>區域</span>
+                        <select id="newsCountySelect"></select>
+                    </label>
+                    <label>
+                        <span>標題</span>
+                        <input id="newsTitleInput" type="text" placeholder="例如：台中房市買氣升溫" required>
+                    </label>
+                    <label>
+                        <span>新聞日期</span>
+                        <input id="newsDateInput" type="date" required>
+                    </label>
+                    <label>
+                        <span>連結</span>
+                        <input id="newsUrlInput" type="url" placeholder="https://..." required>
+                    </label>
+                    <div class="table-actions">
+                        <button id="addNewsBtn" class="ghost-button compact-button" type="submit">送出</button>
+                        <button id="cancelNewsFormBtn" class="ghost-button compact-button" type="button">取消</button>
+                    </div>
+                </form>
+                <ul id="newsList" class="news-list"></ul>
+            </article>
+        </section>
+
+        <section id="timelinePanel" class="timeline-panel" aria-label="時間軸分析" hidden>
+            <article class="panel timeline-overview-panel" data-dev-hide-key="timelineOverviewPanel" data-dev-hide-label="整體趨勢卡">
+                <div class="section-title-row compact">
+                    <div>
+                        <p class="eyebrow">Timeline Overview</p>
+                        <h2>整體趨勢卡</h2>
+                    </div>
+                    <span id="timelineCompareBadge" class="soft-badge">比較期：-</span>
+                </div>
+                <div id="timelineTrendCards" class="timeline-card-grid"></div>
+            </article>
+            <article class="panel timeline-chart-panel" data-dev-hide-key="timelineTrendPanel" data-dev-hide-label="趨勢直條圖">
+                <div class="section-title-row compact">
+                    <div>
+                        <p class="eyebrow">Metric Trend</p>
+                        <h2>趨勢直條圖</h2>
+                    </div>
+                    <span id="timelineMetricBadge" class="soft-badge">本金餘額 + 已准未用</span>
+                </div>
+                <div id="timelineTrendChart" class="chart timeline-chart"></div>
+            </article>
+            <article class="panel timeline-loan-panel" data-dev-hide-key="timelineLoanPanel" data-dev-hide-label="本金餘額結構趨勢">
+                <div class="section-title-row compact">
+                    <div>
+                        <p class="eyebrow">Loan Remain Capital</p>
+                        <h2>本金餘額結構趨勢</h2>
+                    </div>
+                    <span class="soft-badge" hidden aria-hidden="true">front_page_data.xlsx</span>
+                </div>
+                <div id="loanRemainCapitalChart" class="chart loan-remain-capital-chart"></div>
+            </article>
+            <article class="panel timeline-rank-panel" data-dev-hide-key="timelineCountyRankPanel" data-dev-hide-label="區域授信排行">
+                <div class="section-title-row compact">
+                    <div class="timeline-rank-title-wrap">
+                        <button id="timelineCountyRankBackBtn" class="ghost-button compact-button rank-back-button" type="button" hidden>返回縣市排行</button>
+                        <p class="eyebrow">Regional Ranking</p>
+                        <h2 id="timelineCountyRankTitle">區域授信排行</h2>
+                    </div>
+                    <div class="segmented-control compact-segment exposure-basis-control timeline-rank-exposure-basis-control" role="group" aria-label="區域授信排行口徑">
+                        <button id="rankExposurePrincipalBtn" type="button" class="segmented-btn" data-exposure-basis="principal" aria-pressed="true">本金</button>
+                        <button id="rankExposureHouseholdBtn" type="button" class="segmented-btn" data-exposure-basis="household" aria-pressed="false">總歸戶</button>
+                    </div>
+                </div>
+                <div id="timelineCountyRankChart" class="chart timeline-chart"></div>
+            </article>
+            <article class="panel timeline-rank-panel" data-dev-hide-key="timelineCountyChangePanel" data-dev-hide-label="區域變化排行">
+                <div class="section-title-row compact">
+                    <div>
+                        <p class="eyebrow">Regional Delta</p>
+                        <h2>區域變化排行</h2>
+                    </div>
+                    <div id="timelineChangeModeSwitch" class="segmented-control" role="group" aria-label="變化排行模式">
+                        <button type="button" class="segmented-btn active" data-value="increase">增加最多</button>
+                        <button type="button" class="segmented-btn" data-value="decrease">減少最多</button>
+                    </div>
+                </div>
+                <div id="timelineCountyChangeChart" class="chart timeline-chart"></div>
+            </article>
+            <article class="panel timeline-rank-panel" data-dev-hide-key="timelineCustomerChangePanel" data-dev-hide-label="TOP10 客戶變化排行">
+                <div class="section-title-row compact">
+                    <div>
+                        <p class="eyebrow">Customer Delta</p>
+                        <h2>TOP10 客戶變化排行</h2>
+                    </div>
+                    <span class="soft-badge">依目前趨勢指標</span>
+                </div>
+                <div id="timelineCustomerChangeChart" class="chart timeline-chart"></div>
+            </article>
+            <article class="panel timeline-rank-panel timeline-flow-panel" data-dev-hide-key="timelineFlowPanel" data-dev-hide-label="淨增加 / 淨減少概況">
+                <div class="section-title-row compact">
+                    <div>
+                        <p class="eyebrow">Net Flow</p>
+                        <h2>淨增加 / 淨減少概況</h2>
+                    </div>
+                    <span class="soft-badge">客戶口徑</span>
+                </div>
+                <div id="timelineFlowCards" class="timeline-flow-cards"></div>
+                <div id="timelineFlowList" class="timeline-flow-list"></div>
+            </article>
+        </section>
+
+    <section id="analysisDrawerPanel" class="panel action-panel analysis-drawer" data-dev-hide-key="analysisDrawerPanel" data-dev-hide-label="進階分析圖表面板" hidden aria-hidden="true">
+        <div class="section-title-row">
+            <div>
+                <p class="eyebrow">Advanced Analytics</p>
+                <h2>進階分析圖表</h2>
+            </div>
+            <div class="table-actions">
+                <button id="closeAnalysisDrawer" class="ghost-button compact-button" type="button">關閉</button>
+            </div>
+        </div>
+        <div class="analysis-charts-grid">
+            <div class="analysis-chart-card" data-dev-hide-key="analysisIndustryPie" data-dev-hide-label="產品/業別佔比">
+                <h3>產品/業別佔比</h3>
+                <div id="industryPieChart" class="analysis-chart-box"></div>
+            </div>
+            <div class="analysis-chart-card" data-dev-hide-key="analysisRiskPie" data-dev-hide-label="風險等級分布">
+                <h3>風險等級分布</h3>
+                <p id="riskDefinitionNote" class="analysis-note"></p>
+                <div id="riskPieChart" class="analysis-chart-box"></div>
+            </div>
+            <div class="analysis-chart-card" data-dev-hide-key="analysisGroup" data-dev-hide-label="前十大曝險集團">
+                <h3>前十大曝險集團</h3>
+                <div id="analysisGroupChart" class="analysis-chart-box"></div>
+            </div>
+            <div class="analysis-chart-card" data-dev-hide-key="analysisCountyRank" data-dev-hide-label="區域曝險排行">
+                <h3>區域曝險排行</h3>
+                <div id="analysisCountyRankChart" class="analysis-chart-box"></div>
+            </div>
+            <div class="analysis-chart-card" data-dev-hide-key="analysisTopCustomer" data-dev-hide-label="前十大客戶曝險排行">
+                <h3>前十大客戶曝險排行</h3>
+                <div id="topCustomerChart" class="analysis-chart-box"></div>
+            </div>
+            <div class="analysis-chart-card" data-dev-hide-key="analysisQuadrantMatrix" data-dev-hide-label="象限矩陣散佈圖">
+                <h3>象限矩陣散佈圖</h3>
+                <div id="quadrantMatrixChart" class="analysis-chart-box"></div>
+            </div>
+            <div class="analysis-chart-card" data-dev-hide-key="analysisQuadrantSummary" data-dev-hide-label="供需四象限摘要">
+                <h3>供需四象限摘要</h3>
+                <div id="quadrantSummaryChart" class="analysis-chart-box"></div>
+            </div>
+            <div class="analysis-chart-card" data-dev-hide-key="analysisLtv2" data-dev-hide-label="LTV 區間分布">
+                <div class="analysis-card-header">
+                    <h3>LTV 區間分布</h3>
+                    <div id="analysisLtvBasisToggle" class="segmented-control compact-segment ltv-basis-toggle" role="group" aria-label="LTV 區間分布口徑">
+                        <button type="button" class="segmented-btn active" data-ltv-basis="count" aria-pressed="true">件數</button>
+                        <button type="button" class="segmented-btn" data-ltv-basis="amount" aria-pressed="false">金額</button>
+                    </div>
+                </div>
+                <div id="ltvBucketChart2" class="analysis-chart-box"></div>
+            </div>
+        </div>
+    </section>
+
+        <footer class="dashboard-footer">
+            <span id="dataSourceBadge" class="soft-badge">資料來源：-</span>
+        </footer>
+
+    </main>
+
+    <div id="displacementMeasureOverlay" class="displacement-measure-overlay" data-screenshot-exclude="1" hidden aria-hidden="true">
+        <svg id="displacementMeasureSvg" class="displacement-measure-svg" aria-hidden="true">
+            <defs>
+                <marker id="displacementArrowHead" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="strokeWidth">
+                    <path d="M 0 0 L 10 5 L 0 10 z"></path>
+                </marker>
+            </defs>
+            <line id="displacementMeasureLine" x1="0" y1="0" x2="0" y2="0"></line>
+        </svg>
+        <span id="displacementMeasureStart" class="displacement-measure-point" aria-hidden="true"></span>
+        <span id="displacementMeasureEnd" class="displacement-measure-point end" aria-hidden="true"></span>
+        <output id="displacementMeasureHud" class="displacement-measure-hud" aria-live="polite">
+            <span id="displacementMeasureDx">dx: 0px</span>
+            <span id="displacementMeasureDy">dy: 0px</span>
+            <span id="displacementMeasureDirection">方向：無位移</span>
+            <span id="displacementMeasureStartCoord">起點座標：x 0px, y 0px</span>
+            <span id="displacementMeasureCurrentCoord">目前座標：x 0px, y 0px</span>
+            <span id="displacementMeasureTargetBox">起點物件：未偵測</span>
+            <span id="displacementMeasureEndTargetBox">終點物件：未偵測</span>
+            <code id="displacementMeasureTransform">transform: translate(0px, 0px);</code>
+        </output>
+    </div>
+
+    <script src="libs/xlsx.full.min.js"></script>
+    <script src="libs/echarts.min.js"></script>
+    <script src="libs/html2canvas.min.js"></script>
+    <script src="geo/taiwan-counties.js"></script>
+    <script src="data/sample-xlsx.js?v=20260525_0001"></script>
+    <script src="data/timeline-manifest.js?v=20260525_0001"></script>
+    <script src="data/vacancy-rate.js"></script>
+    <script src="data/vacancy-district-rate.js"></script>
+    <script src="app.js?v=20260709_toolbar_filters9"></script>
+</body>
+</html>
